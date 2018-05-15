@@ -23,6 +23,7 @@ add_filter( 'camptix_shortcode_contents',                    __NAMESPACE__ . '\m
 add_filter( 'camptix_name_order',                            __NAMESPACE__ . '\set_name_order'                      );
 add_action( 'camptix_form_edit_attendee_custom_error_flags', __NAMESPACE__ . '\disable_attendee_edits'              );
 add_action( 'transition_post_status',                        __NAMESPACE__ . '\log_publish_to_cancel',        10, 3 );
+add_filter( 'camptix_privacy_erase_attendee',                __NAMESPACE__ . '\retain_attendee_data',         10, 2 );
 
 // Miscellaneous
 add_filter( 'camptix_beta_features_enabled',                 '__return_true' );
@@ -942,4 +943,24 @@ function modify_shortcode_contents( $shortcode_contents, $tix_action ) {
 	}
 
 	return $shortcode_contents;
+}
+
+/**
+ * Short-circuit the CampTix attendee data erasure callback if the attendee data is still within the retention period.
+ *
+ * @param bool|string $erase
+ * @param WP_Post     $post
+ *
+ * @return bool|string
+ */
+function retain_attendee_data( $erase, $post ) {
+	$created          = strtotime( get_the_date( 'c', $post ) );
+	$now              = time();
+	$retention_period = YEAR_IN_SECONDS * 3;
+
+	if ( ( $now - $created ) < $retention_period ) {
+		return __( 'Attendee data could not be anonymized because it is still within the data retention period.', 'wordcamporg' );
+	}
+
+	return $erase;
 }
