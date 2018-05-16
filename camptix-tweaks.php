@@ -555,6 +555,8 @@ function load_custom_addons() {
 	require_once( __DIR__ . '/addons/accommodations.php' );
 	// Code of Conduct field
 	require_once( __DIR__ . '/addons/code-of-conduct.php' );
+	// Privacy field
+	require_once( __DIR__ . '/addons/privacy.php' );
 }
 
 /**
