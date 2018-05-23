@@ -24,6 +24,7 @@ add_filter( 'camptix_name_order',                            __NAMESPACE__ . '\s
 add_action( 'camptix_form_edit_attendee_custom_error_flags', __NAMESPACE__ . '\disable_attendee_edits'              );
 add_action( 'transition_post_status',                        __NAMESPACE__ . '\log_publish_to_cancel',        10, 3 );
 add_filter( 'camptix_privacy_erase_attendee',                __NAMESPACE__ . '\retain_attendee_data',         10, 2 );
+add_action( 'admin_notices',                                 __NAMESPACE__ . '\admin_notice_attendee_privacy'       );
 
 // Miscellaneous
 add_filter( 'camptix_beta_features_enabled',                 '__return_true' );
@@ -965,4 +966,23 @@ function retain_attendee_data( $erase, $post ) {
 	}
 
 	return $erase;
+}
+
+
+function admin_notice_attendee_privacy() {
+	$screen = get_current_screen();
+
+	if ( 'tix_attendee' === $screen->id ) {
+		$notice_classes = 'notice notice-info';
+		$message        = wp_kses_post( sprintf(
+			__( 'The personal information displayed here is <strong>confidential</strong>, and should not be shown publicly, except under the circumstances described in the <a href="%s">privacy policy</a>.', 'wordcamporg' ),
+			esc_url( get_privacy_policy_url() )
+		) );
+
+		printf(
+			'<div class="%1$s">%2$s</div>',
+			esc_attr( $notice_classes ),
+			wpautop( $message )
+		);
+	}
 }
