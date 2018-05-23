@@ -18,8 +18,6 @@ class Privacy_Field extends CampTix_Addon {
 
 	public $question = '';
 
-	public $options = array();
-
 	/**
 	 * Hook into WordPress and Camptix.
 	 */
@@ -39,13 +37,8 @@ class Privacy_Field extends CampTix_Addon {
 			);
 		}
 
-		$this->options = array(
-			'yes' => _x( 'Yes', 'ticket registration option', 'wordcamporg' ),
-			'no'  => _x( 'No', 'ticket registration option', 'wordcamporg' ),
-		);
-
 		// Registration field
-		add_action( 'camptix_attendee_form_after_questions', array( $this, 'render_registration_field' ), 13, 2 );
+		add_action( 'camptix_attendee_form_after_questions', array( $this, 'render_registration_field' ), 10, 2 );
 		add_filter( 'camptix_checkout_attendee_info', array( $this, 'validate_registration_field' ) );
 		add_filter( 'camptix_form_register_complete_attendee_object', array( $this, 'populate_attendee_object' ), 10, 2 );
 		add_action( 'camptix_checkout_update_post_meta', array( $this, 'save_registration_field' ), 10, 2 );
@@ -54,7 +47,7 @@ class Privacy_Field extends CampTix_Addon {
 		// Edit info field
 		add_filter( 'camptix_form_edit_attendee_ticket_info', array( $this, 'populate_ticket_info_array' ), 10, 2 );
 		add_action( 'camptix_form_edit_attendee_update_post_meta', array( $this, 'validate_save_ticket_info_field' ), 10, 2 );
-		add_action( 'camptix_form_edit_attendee_after_questions', array( $this, 'render_ticket_info_field' ), 13 );
+		add_action( 'camptix_form_edit_attendee_after_questions', array( $this, 'render_ticket_info_field' ), 10 );
 	}
 
 	/**
@@ -67,7 +60,7 @@ class Privacy_Field extends CampTix_Addon {
 		$current_data = ( isset( $form_data['tix_attendee_info'][ $i ] ) ) ?: array();
 
 		$current_data = wp_parse_args( $current_data, array(
-			self::SLUG => '',
+			self::SLUG => true,
 		) );
 
 		?>
@@ -75,13 +68,10 @@ class Privacy_Field extends CampTix_Addon {
 		<tr class="tix-row-<?php echo esc_attr( self::SLUG ); ?>">
 			<td class="tix-left">
 				<?php echo wp_kses_post( $this->question ); ?>
-				<span class="tix-required-star">*</span>
 			</td>
 
 			<td class="tix-right">
-				<label><input name="tix_attendee_info[<?php echo esc_attr( $i ); ?>][<?php echo esc_attr( self::SLUG ); ?>]" type="radio" value="yes" <?php checked( 'yes', $current_data[ self::SLUG ] ); ?> /> <?php echo esc_html( $this->options['yes'] ); ?></label>
-				<br />
-				<label><input name="tix_attendee_info[<?php echo esc_attr( $i ); ?>][<?php echo esc_attr( self::SLUG ); ?>]" type="radio" value="no" <?php checked( 'no', $current_data[ self::SLUG ] ); ?> /> <?php echo esc_html( $this->options['no'] ); ?></label>
+				<label><input name="tix_attendee_info[<?php echo esc_attr( $i ); ?>][<?php echo esc_attr( self::SLUG ); ?>]" type="checkbox" <?php checked( $current_data[ self::SLUG ] ); ?> /> <?php echo esc_html_x( 'Yes', 'ticket registration option', 'wordcamporg' ); ?></label>
 			</td>
 		</tr>
 
@@ -96,13 +86,10 @@ class Privacy_Field extends CampTix_Addon {
 	 * @return array
 	 */
 	public function validate_registration_field( $data ) {
-		/* @var CampTix_Plugin $camptix */
-		global $camptix;
-
 		if ( ! isset( $data[ self::SLUG ] ) || empty( $data[ self::SLUG ] ) ) {
-			$camptix->error_flags['required_fields'] = true;
+			$data[ self::SLUG ] = false;
 		} else {
-			$data[ self::SLUG ] = ( 'yes' === $data[ self::SLUG ] ) ? 'yes' : 'no';
+			$data[ self::SLUG ] = true;
 		}
 
 		return $data;
@@ -131,7 +118,7 @@ class Privacy_Field extends CampTix_Addon {
 	 * @return bool|int
 	 */
 	public function save_registration_field( $post_id, $attendee ) {
-		if ( 'yes' === $attendee->{ self::SLUG } ) {
+		if ( true === wp_validate_boolean( $attendee->{ self::SLUG } ) ) {
 			$result = delete_post_meta( $post_id, 'tix_' . self::SLUG );
 		} else {
 			$result = update_post_meta( $post_id, 'tix_' . self::SLUG, 'private' );
@@ -152,9 +139,9 @@ class Privacy_Field extends CampTix_Addon {
 		$raw_value = get_post_meta( $attendee->ID, 'tix_' . self::SLUG, true );
 
 		if ( 'private' === $raw_value ) {
-			$ticket_info[ self::SLUG ] = 'no';
+			$ticket_info[ self::SLUG ] = false;
 		} else {
-			$ticket_info[ self::SLUG ] = 'yes';
+			$ticket_info[ self::SLUG ] = true;
 		}
 
 		return $ticket_info;
@@ -169,7 +156,9 @@ class Privacy_Field extends CampTix_Addon {
 	 * @return bool|int
 	 */
 	public function validate_save_ticket_info_field( $data, $attendee ) {
-		if ( 'yes' === $data[ self::SLUG ] ) {
+		$data = $this->validate_registration_field( $data );
+
+		if ( true === wp_validate_boolean( $data[ self::SLUG ] ) ) {
 			$result = delete_post_meta( $attendee->ID, 'tix_' . self::SLUG );
 		} else {
 			$result = update_post_meta( $attendee->ID, 'tix_' . self::SLUG, 'private' );
@@ -184,22 +173,17 @@ class Privacy_Field extends CampTix_Addon {
 	 * @param array $ticket_info
 	 */
 	public function render_ticket_info_field( $ticket_info ) {
-		$current_data = wp_parse_args( $ticket_info, array(
-			self::SLUG => 'yes',
-		) );
+		$current_data = $this->validate_registration_field( $ticket_info );
 
 		?>
 
 		<tr class="tix-row-<?php echo esc_attr( self::SLUG ); ?>">
-			<td class="tix-required tix-left">
+			<td class="tix-left">
 				<?php echo wp_kses_post( $this->question ); ?>
-				<span class="tix-required-star">*</span>
 			</td>
 
 			<td class="tix-right">
-				<label><input name="tix_ticket_info[<?php echo esc_attr( self::SLUG ); ?>]" type="radio" value="yes" <?php checked( 'yes', $current_data[ self::SLUG ] ); ?> /> <?php echo esc_html( $this->options['yes'] ); ?></label>
-				<br />
-				<label><input name="tix_ticket_info[<?php echo esc_attr( self::SLUG ); ?>]" type="radio" value="no" <?php checked( 'no', $current_data[ self::SLUG ] ); ?> /> <?php echo esc_html( $this->options['no'] ); ?></label>
+				<label><input name="tix_ticket_info[<?php echo esc_attr( self::SLUG ); ?>]" type="checkbox" <?php checked( $current_data[ self::SLUG ] ); ?> /> <?php echo esc_html_x( 'Yes', 'ticket registration option', 'wordcamporg' ); ?></label>
 			</td>
 		</tr>
 
