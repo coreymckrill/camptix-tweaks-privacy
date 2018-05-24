@@ -25,6 +25,7 @@ add_action( 'camptix_form_edit_attendee_custom_error_flags', __NAMESPACE__ . '\d
 add_action( 'transition_post_status',                        __NAMESPACE__ . '\log_publish_to_cancel',        10, 3 );
 add_filter( 'camptix_privacy_erase_attendee',                __NAMESPACE__ . '\retain_attendee_data',         10, 2 );
 add_action( 'admin_notices',                                 __NAMESPACE__ . '\admin_notice_attendee_privacy'       );
+add_filter( 'wp_privacy_personal_data_erasers',              __NAMESPACE__ . '\modify_erasers',                  99 );
 
 // Miscellaneous
 add_filter( 'camptix_beta_features_enabled',                 '__return_true' );
@@ -946,6 +947,20 @@ function modify_shortcode_contents( $shortcode_contents, $tix_action ) {
 	}
 
 	return $shortcode_contents;
+}
+
+/**
+ * Modify the list of personal data eraser callbacks.
+ *
+ * @param array $erasers
+ *
+ * @return array mixed
+ */
+function modify_erasers( $erasers ) {
+	// Temporarily disable the default eraser callbacks for CampTix.
+	unset( $erasers['camptix-attendee'] );
+
+	return $erasers;
 }
 
 /**
