@@ -983,7 +983,9 @@ function retain_attendee_data( $erase, $post ) {
 	return $erase;
 }
 
-
+/**
+ * Add a notice about data confidentiality to the Edit Attendee screen.
+ */
 function admin_notice_attendee_privacy() {
 	$screen = get_current_screen();
 
